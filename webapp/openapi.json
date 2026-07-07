@@ -1,0 +1,763 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "LoR Guru API",
+  "description": "Búsqueda de cartas de Legends of Runeterra en lenguaje natural (es_mx): filtros exactos, búsqueda semántica e híbrida, y agente multi-proveedor (BYOK).",
+  "version": "0.2.0"
+ },
+ "paths": {
+  "/salud": {
+   "get": {
+    "summary": "Salud",
+    "operationId": "salud_salud_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/proveedores": {
+   "get": {
+    "summary": "Proveedores",
+    "description": "Los proveedores BYOK con sus modelos. `verificado` es POR MODELO: True\nsolo si ESE modelo corrió el set de evaluación completo con resultado >=\ncriterio (hoy: únicamente claude-sonnet-5). La UI debe marcar el\nverificado como recomendado y ser honesta con el resto.",
+    "operationId": "proveedores_proveedores_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ProveedorOut"
+         },
+         "type": "array",
+         "title": "Response Proveedores Proveedores Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/cartas/filtrar": {
+   "post": {
+    "summary": "Filtrar",
+    "operationId": "filtrar_cartas_filtrar_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FiltroParams"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CartasResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/cartas/buscar": {
+   "post": {
+    "summary": "Buscar",
+    "operationId": "buscar_cartas_buscar_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BusquedaRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CartasResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/agente": {
+   "post": {
+    "summary": "Agente",
+    "operationId": "agente_agente_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AgenteRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AgenteResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/agente/stream": {
+   "post": {
+    "summary": "Agente Stream",
+    "description": "El mismo loop, como Server-Sent Events POR PASOS: eventos JSON\n`inicio`, `tool_use`, `tool_result` y `respuesta` (el final, con texto y\ncartas). Suficiente para que la fase 3 muestre progreso en tiempo real;\nel streaming token a token del texto queda para la fase 3.",
+    "operationId": "agente_stream_agente_stream_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AgenteRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "AgenteRequest": {
+    "properties": {
+     "consulta": {
+      "type": "string",
+      "minLength": 1,
+      "title": "Consulta"
+     },
+     "proveedor": {
+      "type": "string",
+      "enum": [
+       "anthropic",
+       "gemini",
+       "openai"
+      ],
+      "title": "Proveedor",
+      "default": "anthropic"
+     },
+     "modelo": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Modelo",
+      "description": "Default por proveedor si se omite"
+     },
+     "api_key": {
+      "type": "string",
+      "minLength": 8,
+      "title": "Api Key",
+      "description": "La clave del usuario para el proveedor elegido (BYOK). Solo en body, nunca en query string; no se persiste ni loguea."
+     },
+     "max_turnos": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 1.0,
+      "title": "Max Turnos",
+      "default": 6
+     }
+    },
+    "type": "object",
+    "required": [
+     "consulta",
+     "api_key"
+    ],
+    "title": "AgenteRequest"
+   },
+   "AgenteResponse": {
+    "properties": {
+     "respuesta": {
+      "type": "string",
+      "title": "Respuesta"
+     },
+     "cartas": {
+      "items": {
+       "$ref": "#/components/schemas/CartaOut"
+      },
+      "type": "array",
+      "title": "Cartas"
+     },
+     "llamadas": {
+      "items": {
+       "$ref": "#/components/schemas/LlamadaTool"
+      },
+      "type": "array",
+      "title": "Llamadas"
+     },
+     "metodo_cartas": {
+      "type": "string",
+      "enum": [
+       "citadas",
+       "ultima_llamada",
+       "ninguna"
+      ],
+      "title": "Metodo Cartas"
+     }
+    },
+    "type": "object",
+    "required": [
+     "respuesta",
+     "cartas",
+     "llamadas",
+     "metodo_cartas"
+    ],
+    "title": "AgenteResponse"
+   },
+   "BusquedaRequest": {
+    "properties": {
+     "texto_consulta": {
+      "type": "string",
+      "minLength": 1,
+      "title": "Texto Consulta",
+      "description": "Descripción en español del efecto buscado"
+     },
+     "top_k": {
+      "type": "integer",
+      "maximum": 100.0,
+      "minimum": 1.0,
+      "title": "Top K",
+      "default": 10
+     },
+     "filtro_metadata": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/FiltroParams"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Filtros exactos para acotar ANTES de buscar (híbrido)"
+     }
+    },
+    "type": "object",
+    "required": [
+     "texto_consulta"
+    ],
+    "title": "BusquedaRequest"
+   },
+   "CartaOut": {
+    "properties": {
+     "cardCode": {
+      "type": "string",
+      "title": "Cardcode"
+     },
+     "nombre": {
+      "type": "string",
+      "title": "Nombre"
+     },
+     "regiones": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Regiones"
+     },
+     "regionRefs": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Regionrefs"
+     },
+     "coste": {
+      "type": "integer",
+      "title": "Coste"
+     },
+     "ataque": {
+      "type": "integer",
+      "title": "Ataque"
+     },
+     "vida": {
+      "type": "integer",
+      "title": "Vida"
+     },
+     "tipo": {
+      "type": "string",
+      "title": "Tipo"
+     },
+     "supertipo": {
+      "type": "string",
+      "title": "Supertipo"
+     },
+     "rareza": {
+      "type": "string",
+      "title": "Rareza"
+     },
+     "rarityRef": {
+      "type": "string",
+      "title": "Rarityref"
+     },
+     "velocidadRef": {
+      "type": "string",
+      "title": "Velocidadref"
+     },
+     "keywords": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Keywords"
+     },
+     "keywordRefs": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Keywordrefs"
+     },
+     "descripcion": {
+      "type": "string",
+      "title": "Descripcion"
+     },
+     "descripcionSubida": {
+      "type": "string",
+      "title": "Descripcionsubida"
+     },
+     "imagen": {
+      "type": "string",
+      "title": "Imagen"
+     },
+     "imagenFull": {
+      "type": "string",
+      "title": "Imagenfull"
+     },
+     "distancia": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Distancia"
+     }
+    },
+    "type": "object",
+    "required": [
+     "cardCode",
+     "nombre",
+     "regiones",
+     "regionRefs",
+     "coste",
+     "ataque",
+     "vida",
+     "tipo",
+     "supertipo",
+     "rareza",
+     "rarityRef",
+     "velocidadRef",
+     "keywords",
+     "keywordRefs",
+     "descripcion",
+     "descripcionSubida",
+     "imagen",
+     "imagenFull"
+    ],
+    "title": "CartaOut"
+   },
+   "CartasResponse": {
+    "properties": {
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "cartas": {
+      "items": {
+       "$ref": "#/components/schemas/CartaOut"
+      },
+      "type": "array",
+      "title": "Cartas"
+     }
+    },
+    "type": "object",
+    "required": [
+     "total",
+     "cartas"
+    ],
+    "title": "CartasResponse"
+   },
+   "FiltroParams": {
+    "properties": {
+     "region": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Region",
+      "description": "Ref de región (inglés), p. ej. 'Noxus'"
+     },
+     "costo_min": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Costo Min"
+     },
+     "costo_max": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Costo Max"
+     },
+     "ataque_min": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ataque Min"
+     },
+     "ataque_max": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ataque Max"
+     },
+     "vida_min": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Vida Min"
+     },
+     "vida_max": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Vida Max"
+     },
+     "tipo": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tipo",
+      "description": "'Unidad', 'Hechizo', 'Hito' o 'Equipo'"
+     },
+     "supertipo": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Supertipo",
+      "description": "'Campeón'"
+     },
+     "keywords": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Keywords",
+      "description": "Refs de keywords; la carta debe tener todas"
+     },
+     "rareza": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rareza",
+      "description": "Ref de rareza, p. ej. 'Champion'"
+     },
+     "velocidad": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Velocidad",
+      "description": "Ref de velocidad de hechizo, p. ej. 'Burst'"
+     }
+    },
+    "type": "object",
+    "title": "FiltroParams",
+    "description": "Los mismos parámetros validados en fase 1 para filtrar_cartas."
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "type": "array",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+   },
+   "LlamadaTool": {
+    "properties": {
+     "tool": {
+      "type": "string",
+      "title": "Tool"
+     },
+     "entrada": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Entrada"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tool",
+     "entrada",
+     "total"
+    ],
+    "title": "LlamadaTool"
+   },
+   "ModeloOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "nombre": {
+      "type": "string",
+      "title": "Nombre"
+     },
+     "verificado": {
+      "type": "boolean",
+      "title": "Verificado"
+     },
+     "nota": {
+      "type": "string",
+      "title": "Nota"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "nombre",
+     "verificado",
+     "nota"
+    ],
+    "title": "ModeloOut"
+   },
+   "ProveedorOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "nombre": {
+      "type": "string",
+      "title": "Nombre"
+     },
+     "modelo_default": {
+      "type": "string",
+      "title": "Modelo Default"
+     },
+     "verificado": {
+      "type": "boolean",
+      "title": "Verificado"
+     },
+     "modelos": {
+      "items": {
+       "$ref": "#/components/schemas/ModeloOut"
+      },
+      "type": "array",
+      "title": "Modelos"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "nombre",
+     "modelo_default",
+     "verificado",
+     "modelos"
+    ],
+    "title": "ProveedorOut"
+   },
+   "ValidationError": {
+    "properties": {
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Location"
+     },
+     "msg": {
+      "type": "string",
+      "title": "Message"
+     },
+     "type": {
+      "type": "string",
+      "title": "Error Type"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "ctx": {
+      "type": "object",
+      "title": "Context"
+     }
+    },
+    "type": "object",
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError"
+   }
+  }
+ }
+}

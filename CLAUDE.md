@@ -73,16 +73,32 @@ Decisiones de fase 3 (tomadas al arrancar, justificación en GUIA_FASE3.md):
 
 Checklist de avance:
 
-- [ ] Repo git inicializado, .gitignore, CLAUDE.md (esta sección)
-- [ ] Backend: `GET /proveedores` extendido con `modelos[]` por proveedor
-      (cada modelo con su `verificado`; solo claude-sonnet-5 = true)
-- [ ] `webapp/` scaffold (Next.js + TS + Tailwind + shadcn) + tema LoR
-- [ ] Tipos generados desde OpenAPI (`openapi-typescript`)
-- [ ] `useAgenteStream` + UI (formulario, selector proveedor→modelo, api key,
-      progreso por pasos, grid de cartas, panel de transparencia, errores)
-- [ ] Verificación local end-to-end (uvicorn + next dev)
-- [ ] Dockerfile backend (índice horneado) + instrucciones de deploy
-- [ ] GUIA_FASE3.md
+- [x] Repo git inicializado, .gitignore, CLAUDE.md (esta sección)
+- [x] Backend: `GET /proveedores` extendido con `modelos[]` por proveedor
+      (cada modelo con su `verificado`; solo claude-sonnet-5 = true).
+      Capa A: 20 passed. IDs de modelos confirmados contra docs 2026-07.
+- [x] `webapp/` scaffold (Next.js 16.2 + TS + Tailwind v4, `--src-dir`)
+- [x] Tipos generados desde OpenAPI (`scripts/exportar_openapi.py` +
+      `npm run tipos` → `src/lib/openapi.d.ts`)
+- [x] `useAgenteStream` (fetch + ReadableStream; decisión documentada en
+      GUIA_FASE3.md §2) y componentes del dominio: FormularioBusqueda,
+      SelectorProveedorModelo, CampoApiKey (secreto, persistencia opt-in),
+      ProgresoAgente, GridCartas, TarjetaCarta, PanelTransparencia;
+      `page.tsx` y `layout.tsx` (Cinzel + Nunito Sans, lang=es)
+- [ ] **BLOQUEADO/EN CURSO**: primitivas `components/ui/*` — el CLI de
+      shadcn (`npx shadcn init/add`) se cuelga sin output en este entorno.
+      Plan B decidido: escribir a mano las 7 primitivas que usa la UI
+      (button, input, textarea, label, badge, alert, select — select con
+      @radix-ui/react-select para poder meter el badge en los items) con el
+      mismo API y layout de archivos que shadcn.
+- [ ] Tema LoR en `globals.css` (paleta azul noche/dorado/cian, utilidades
+      `fondo-grimorio`, `marco-panel`, `marco-carta` — spec en GUIA_FASE3 §7)
+- [ ] Verificación local end-to-end (uvicorn + next dev) — hay preview tools
+- [x] Dockerfile backend (índice horneado, torch CPU) + requirements-api.txt
+      + .dockerignore; instrucciones de deploy en GUIA_FASE3.md §6
+- [x] GUIA_FASE3.md (completa; §7 describe el tema aún no aplicado)
 
-Siguiente paso concreto: extender `/proveedores` en `lorguru/agente.py` +
-`lorguru/api.py` y ajustar `tests/test_capa_a.py`.
+Siguiente paso concreto: (1) escribir `webapp/src/components/ui/{button,
+input,textarea,label,badge,alert,select}.tsx` a mano + `lib/utils.ts` (cn) +
+`npm i @radix-ui/react-select`; (2) tema en `globals.css`; (3) `npm run
+build` hasta verde; (4) verificación local con backend real.

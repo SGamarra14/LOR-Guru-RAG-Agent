@@ -1,0 +1,14 @@
+# Dependencias MÍNIMAS para servir la API (las que usa la imagen Docker).
+# requirements.txt es el superset de desarrollo (notebook, tests, gráficas).
+pandas>=3.0
+requests>=2.32
+chromadb>=1.5
+sentence-transformers>=5.0
+python-dotenv>=1.2
+numpy>=2.0
+fastapi>=0.139
+uvicorn[standard]>=0.32
+
+# PINEADO EXACTO. Nunca 1.82.7 ni 1.82.8: versiones comprometidas con malware
+# roba-credenciales, y esta librería maneja las API keys de los usuarios.
+litellm==1.91.0

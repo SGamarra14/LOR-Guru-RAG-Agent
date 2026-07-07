@@ -1,0 +1,14 @@
+# La imagen solo necesita lorguru/ + requirements-api.txt; todo lo demás fuera.
+.git
+.env
+.env.*
+data/
+chroma_db/
+webapp/
+tests/
+scripts/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.ipynb
+*.md

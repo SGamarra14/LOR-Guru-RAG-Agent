@@ -101,7 +101,13 @@ export function useAgenteStream() {
       } else if (evento.tipo === "error") {
         falla(mensajeDeError(evento.status, evento.detalle));
       } else if (evento.tipo === "respuesta") {
-        setResultado(evento);
+        // El evento del stream usa "texto"; el shape de la API, "respuesta".
+        setResultado({
+          respuesta: evento.texto,
+          cartas: evento.cartas,
+          llamadas: evento.llamadas,
+          metodo_cartas: evento.metodo_cartas,
+        });
         setFase("listo");
       }
     };

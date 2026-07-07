@@ -35,8 +35,19 @@ src/
 │   ├── GridCartas.tsx
 │   ├── TarjetaCarta.tsx
 │   └── PanelTransparencia.tsx
-└── components/ui/            # primitivas de shadcn (generadas por su CLI)
+└── components/ui/            # primitivas estilo shadcn (ver nota abajo)
 ```
+
+> **Nota sobre shadcn**: lo normal es generar `components/ui/*` con
+> `npx shadcn init` + `npx shadcn add button input textarea select label
+> badge alert`. En el entorno del proyecto de referencia el CLI se colgaba
+> sin output, así que las 7 primitivas están **escritas a mano** con el
+> mismo API y ubicación (para que un `shadcn add` futuro las reemplace sin
+> tocar el resto): wrappers finos con Tailwind, un `cn` mínimo en
+> `lib/utils.ts`, y solo una dependencia real — `@radix-ui/react-select` —
+> porque los items del selector de modelos llevan una insignia dentro, cosa
+> que un `<select>` nativo no puede renderizar. Si el CLI te funciona,
+> úsalo; el resultado es intercambiable.
 
 ¿Por qué esta organización? `componentes/` (dominio, español) separado de
 `components/ui/` (primitivas genéricas de shadcn, generadas): lo que es tuyo

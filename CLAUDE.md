@@ -85,20 +85,29 @@ Checklist de avance:
       SelectorProveedorModelo, CampoApiKey (secreto, persistencia opt-in),
       ProgresoAgente, GridCartas, TarjetaCarta, PanelTransparencia;
       `page.tsx` y `layout.tsx` (Cinzel + Nunito Sans, lang=es)
-- [ ] **BLOQUEADO/EN CURSO**: primitivas `components/ui/*` — el CLI de
-      shadcn (`npx shadcn init/add`) se cuelga sin output en este entorno.
-      Plan B decidido: escribir a mano las 7 primitivas que usa la UI
-      (button, input, textarea, label, badge, alert, select — select con
-      @radix-ui/react-select para poder meter el badge en los items) con el
-      mismo API y layout de archivos que shadcn.
-- [ ] Tema LoR en `globals.css` (paleta azul noche/dorado/cian, utilidades
-      `fondo-grimorio`, `marco-panel`, `marco-carta` — spec en GUIA_FASE3 §7)
-- [ ] Verificación local end-to-end (uvicorn + next dev) — hay preview tools
+- [x] Primitivas `components/ui/*` escritas A MANO (el CLI de shadcn se
+      colgaba sin output): button, input, textarea, label, badge, alert +
+      select sobre @radix-ui/react-select; `lib/utils.ts` con `cn` mínimo.
+      Mismo API/ubicación que shadcn — un `shadcn add` futuro las reemplaza.
+- [x] Tema LoR en `globals.css`: paleta azul noche (#0a1120) / dorado
+      (#c8a24b) / cian (#2dd4d4), radios angulosos, `fondo-grimorio` (grano
+      feTurbulence), `marco-panel`/`marco-carta` con esquinas doradas y glow
+      cian al hover. `npm run build` en verde.
+- [x] Verificación local end-to-end: backend con `python -m uvicorn
+      lorguru.api:app --port 8000` (OJO: el launcher del preview no logró
+      arrancar la API; uvicorn directo sí) + `npm run dev`. Verificado en
+      navegador: carga de proveedores con insignia "Recomendado · verificado
+      16/16", flujo de error real (clave inválida → paso "Agente iniciado" →
+      Alert con mensaje de 401), y flujo de éxito con stream simulado sobre
+      cartas reales (progreso por pasos con argumentos, grid con imágenes
+      del Data Dragon reescritas a https, panel de transparencia). La
+      búsqueda real con clave desde el navegador queda para el usuario (la
+      clave no debe pasar por logs de herramientas).
 - [x] Dockerfile backend (índice horneado, torch CPU) + requirements-api.txt
       + .dockerignore; instrucciones de deploy en GUIA_FASE3.md §6
-- [x] GUIA_FASE3.md (completa; §7 describe el tema aún no aplicado)
+- [x] GUIA_FASE3.md (completa, con la nota de primitivas a mano)
 
-Siguiente paso concreto: (1) escribir `webapp/src/components/ui/{button,
-input,textarea,label,badge,alert,select}.tsx` a mano + `lib/utils.ts` (cn) +
-`npm i @radix-ui/react-select`; (2) tema en `globals.css`; (3) `npm run
-build` hasta verde; (4) verificación local con backend real.
+Pendiente que requiere cuentas del usuario (no automatizable desde aquí):
+deploy real a Vercel (root dir `webapp/`, var `NEXT_PUBLIC_API_URL`) y al
+host del backend (imagen del Dockerfile; var `ORIGENES_CORS` con el dominio
+de Vercel). Pasos exactos en GUIA_FASE3.md §6.

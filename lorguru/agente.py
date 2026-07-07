@@ -40,22 +40,60 @@ litellm.drop_params = True  # ignora params que un proveedor no soporte
 MAX_CARTAS_TOOL = 25
 PATRON_CARDCODE = re.compile(r"\b\d{2}[A-Z]{2}\d{3}\b")
 
-# "verificado" = el set de 16 consultas de evaluación se corrió contra el
-# proveedor con resultado >= criterio (ver GUIA_FASE2.md, sección 7).
+# "verificado" = ESE MODELO corrió el set de 16 consultas de evaluación con
+# resultado >= criterio (GUIA_FASE2.md §7). La verificación es POR MODELO,
+# no por proveedor: solo claude-sonnet-5 tiene 16/16 — no se extiende a
+# Opus/Haiku ni al resto por ser de la misma casa.
 # ⚠️ openai/GPT: implementado con el mismo patrón pero SIN VERIFICAR — no se
-# cuenta con API key para correr la evaluación. No lo anuncies al mismo nivel
-# que los verificados hasta correr el set contra él.
+# cuenta con API key para correr la evaluación.
+# ⚠️ gemini: sin verificar el set completo POR CUOTA, no por calidad: el free
+# tier (~20 requests/día/modelo) no cubre las ~40 llamadas del set. Parciales
+# sobre gemini-2.5-flash-lite: 7 casos distintos pasados, cero fallos de
+# calidad. Completar con: pytest -m agente -s -k gemini (con cuota).
+# Identificadores de modelos confirmados contra la documentación de cada
+# proveedor en 2026-07 — revisar al desplegar, cambian con frecuencia.
 PROVEEDORES = {
-    "anthropic": {"modelo_default": "claude-sonnet-5", "verificado": True},
-    # ⚠️ gemini: SIN VERIFICAR EL SET COMPLETO por cuota, no por calidad. El
-    # free tier actual (~20 requests/día por modelo) no alcanza para las ~40
-    # llamadas de la evaluación: en las corridas parciales pasaron 7 casos
-    # distintos (F1-F6, S2) con CERO fallos de calidad — todos los fallos
-    # fueron 429 de cuota. flash-lite es el default por ser el que más lejos
-    # llegó; con clave de pago: modelo="gemini-2.5-flash". Para completar la
-    # verificación: pytest -m agente -s -k gemini (con cuota disponible).
-    "gemini": {"modelo_default": "gemini-2.5-flash-lite", "verificado": False},
-    "openai": {"modelo_default": "gpt-5.1", "verificado": False},
+    "anthropic": {
+        "nombre": "Claude (Anthropic)",
+        "modelo_default": "claude-sonnet-5",
+        "verificado": True,
+        "modelos": [
+            {"id": "claude-sonnet-5", "nombre": "Claude Sonnet 5",
+             "verificado": True,
+             "nota": "Recomendado: 16/16 en el set de evaluación (fase 2)"},
+            {"id": "claude-opus-4-8", "nombre": "Claude Opus 4.8",
+             "verificado": False, "nota": ""},
+            {"id": "claude-haiku-4-5", "nombre": "Claude Haiku 4.5",
+             "verificado": False, "nota": ""},
+        ],
+    },
+    "gemini": {
+        "nombre": "Gemini (Google)",
+        "modelo_default": "gemini-2.5-flash-lite",
+        "verificado": False,
+        "modelos": [
+            {"id": "gemini-2.5-flash-lite", "nombre": "Gemini 2.5 Flash-Lite",
+             "verificado": False,
+             "nota": "Evaluación parcial (7 casos, sin fallos de calidad); "
+                     "el free tier no cubre el set completo"},
+            {"id": "gemini-3.5-flash", "nombre": "Gemini 3.5 Flash",
+             "verificado": False, "nota": ""},
+            {"id": "gemini-3.1-flash-lite", "nombre": "Gemini 3.1 Flash-Lite",
+             "verificado": False, "nota": ""},
+        ],
+    },
+    "openai": {
+        "nombre": "GPT (OpenAI)",
+        "modelo_default": "gpt-5.5",
+        "verificado": False,
+        "modelos": [
+            {"id": "gpt-5.5", "nombre": "GPT-5.5",
+             "verificado": False,
+             "nota": "Sin verificar: no hay credenciales para correr el set"},
+            {"id": "gpt-5.4-mini", "nombre": "GPT-5.4 mini",
+             "verificado": False, "nota": ""},
+        ],
+    },
 }
 
 

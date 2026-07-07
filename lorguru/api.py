@@ -145,10 +145,19 @@ class AgenteResponse(BaseModel):
     metodo_cartas: Literal["citadas", "ultima_llamada", "ninguna"]
 
 
+class ModeloOut(BaseModel):
+    id: str
+    nombre: str
+    verificado: bool
+    nota: str
+
+
 class ProveedorOut(BaseModel):
     id: str
+    nombre: str
     modelo_default: str
     verificado: bool
+    modelos: list[ModeloOut]
 
 
 # --- Helpers ----------------------------------------------------------------
@@ -198,9 +207,10 @@ def salud():
 
 @app.get("/proveedores", response_model=list[ProveedorOut])
 def proveedores():
-    """Los proveedores BYOK. `verificado`=False significa que el set de
-    evaluación NO se ha corrido contra ese proveedor (hoy: openai/GPT, sin
-    API key para probarlo) — el cliente debería señalarlo en su UI."""
+    """Los proveedores BYOK con sus modelos. `verificado` es POR MODELO: True
+    solo si ESE modelo corrió el set de evaluación completo con resultado >=
+    criterio (hoy: únicamente claude-sonnet-5). La UI debe marcar el
+    verificado como recomendado y ser honesta con el resto."""
     return [{"id": pid, **datos} for pid, datos in PROVEEDORES.items()]
 
 

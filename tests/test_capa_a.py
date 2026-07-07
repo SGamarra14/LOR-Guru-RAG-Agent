@@ -30,10 +30,17 @@ def test_salud(cliente):
 
 
 def test_proveedores_marca_no_verificados(cliente):
-    """openai/GPT debe anunciarse como NO verificado hasta correr el set."""
+    """La verificación es POR MODELO: solo claude-sonnet-5 corrió el set
+    completo. Nada más puede anunciarse como verificado."""
     proveedores = {p["id"]: p for p in cliente.get("/proveedores").json()}
     assert set(proveedores) == {"anthropic", "gemini", "openai"}
     assert proveedores["openai"]["verificado"] is False
+    assert proveedores["gemini"]["verificado"] is False
+    for p in proveedores.values():
+        assert p["modelos"], f"{p['id']} sin lista de modelos"
+        assert any(m["id"] == p["modelo_default"] for m in p["modelos"])
+        for m in p["modelos"]:
+            assert m["verificado"] is (m["id"] == "claude-sonnet-5")
 
 
 def test_filtro_invalido_da_422(cliente):

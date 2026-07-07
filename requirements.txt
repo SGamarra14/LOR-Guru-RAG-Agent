@@ -1,0 +1,26 @@
+# LoR Guru — Fase 2 (versiones con las que se validó la suite de regresión)
+pandas>=3.0
+requests>=2.32
+chromadb>=1.5
+sentence-transformers>=5.0
+python-dotenv>=1.2
+matplotlib>=3.11        # solo lo usa el notebook de fase 1
+notebook>=7.0           # solo para el notebook de fase 1
+
+# --- API (fase 2) ---
+fastapi>=0.139
+uvicorn[standard]>=0.32
+numpy>=2.0
+
+# LiteLLM PINEADO EXACTO. Nunca instalar 1.82.7 ni 1.82.8: Anthropic señaló
+# esas dos versiones como comprometidas con malware que robaba credenciales,
+# y esta librería maneja las API keys de los usuarios (BYOK).
+litellm==1.91.0
+
+# anthropic ya no es dependencia directa del agente (LiteLLM lo abstrae),
+# pero LiteLLM lo usa como backend para el proveedor anthropic.
+anthropic>=0.116
+
+# --- Tests ---
+pytest>=9.0
+httpx>=0.27             # lo usa TestClient de FastAPI

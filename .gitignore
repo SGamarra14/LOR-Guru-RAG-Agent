@@ -1,0 +1,25 @@
+# Secretos — NUNCA subir
+.env
+.env.*
+!.env.example
+
+# Datos y artefactos generados (se reconstruyen con python -m lorguru.build_index)
+data/
+chroma_db/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node / Next.js
+node_modules/
+webapp/.next/
+webapp/out/
+webapp/next-env.d.ts
+
+# Editor / SO
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

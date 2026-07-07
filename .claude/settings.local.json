@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($card = \\(Get-Content \"D:\\\\LOR Guru\\\\data\\\\cards\\\\set1.json\" -Raw -Encoding UTF8 | ConvertFrom-Json\\) | Select-Object -First 1; $card | ConvertTo-Json -Depth 3)",
+      "PowerShell($g = Get-Content \"D:\\\\LOR Guru\\\\data\\\\global\\\\globals-es_mx.json\" -Raw -Encoding UTF8 | ConvertFrom-Json; $g.PSObject.Properties.Name; Write-Host \"--- keywords sample:\"; $g.keywords | Select-Object -First 3 | ConvertTo-Json; Write-Host \"--- regions:\"; $g.regions | ForEach-Object { \"$\\($_.nameRef\\) -> $\\($_.name\\)\" })"
+    ]
+  }
+}

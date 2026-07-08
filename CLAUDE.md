@@ -23,12 +23,22 @@ sesión nueva, empieza leyendo esto.
 - **Stores separados**: DataFrame pandas en memoria para filtros exactos
   (`lorguru/stores.py:filtrar_cartas`); Chroma persistente para semántica.
   Híbrido = filtrar primero, restringir Chroma con `$in` sobre cardCode.
-- **Embeddings**: `intfloat/multilingual-e5-large` (A/B en
-  `scripts/comparar_embeddings.py`; tabla en GUIA_FASE2.md §8). Exige
-  prefijos `"passage: "` / `"query: "`. Solo texto de habilidades +
-  descripciones de keywords — nunca stats numéricos.
+- **Embeddings**: **API de Gemini `gemini-embedding-001` (768 dims)** desde la
+  migración de 2026-07 (`lorguru/embeddings.py`; nota en GUIA_FASE2.md §8).
+  Antes era `intfloat/multilingual-e5-large` local — se migró para hospedar
+  barato (el servidor ya no carga un modelo de ~2.5 GB). `taskType`
+  RETRIEVAL_DOCUMENT/QUERY hace el papel de los viejos prefijos passage/query;
+  se normaliza a L2. Solo texto de habilidades + descripciones de keywords —
+  nunca stats. El A/B histórico (e5 vs MiniLM) en `scripts/comparar_embeddings.py`
+  sigue siendo la doc de la decisión de fase 2, pero ya NO refleja el modelo
+  en uso.
+- **Claves de Gemini para embeddings**: el **build** rota `GEMINI_API_KEY_1` y
+  `GEMINI_API_KEY_2` (2 hilos, paceados bajo 100/min con backoff 429 — ideal:
+  proyectos separados). El **servidor** usa `GEMINI_API_KEY` para embeber cada
+  consulta (costo del servidor, NO BYOK). Esto es aparte del LLM del agente.
 - **Indexado separado del servido**: `python -m lorguru.build_index`
-  construye; la API solo carga y FALLA si el índice no existe. No cambiar.
+  construye (necesita las claves de Gemini); la API solo carga y FALLA si el
+  índice no existe. No cambiar.
 - **Agente BYOK multi-proveedor** vía LiteLLM `==1.91.0` (jamás 1.82.7/1.82.8
   — comprometidas con malware). La api_key del usuario viaja en el body, no
   se persiste ni loguea.
@@ -52,12 +62,14 @@ pytest                            # capa A (gratis)
 pytest -m agente -s               # capa B (gasta API; claves en .env)
 ```
 
-`.env`: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `ORIGENES_CORS`.
+`.env`: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` (embeddings del servidor + capa B
+Gemini), `GEMINI_API_KEY_1`/`_2` (build del índice), `ORIGENES_CORS`.
 
 ## Fase 3: plan y avance
 
 Objetivo: frontend Next.js (+ Tailwind/shadcn) en `webapp/` que consuma la
-API, y despliegue (Vercel + host con índice horneado en imagen Docker).
+API, y despliegue (Vercel + host con el índice ya construido copiado en la
+imagen Docker; sin torch tras la migración a embeddings de Gemini).
 Entregables: `GUIA_FASE3.md` + `webapp/` de referencia.
 
 Decisiones de fase 3 (tomadas al arrancar, justificación en GUIA_FASE3.md):

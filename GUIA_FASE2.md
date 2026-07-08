@@ -392,6 +392,39 @@ GPU a esta escala). La consulta "casual" (0/10) muestra que ningún embedding
 sustituye al agente reformulando: la instrucción de frasear como carta sigue
 vigente.
 
+> ### ⟳ Migración posterior a la API de Gemini (2026-07)
+>
+> El e5-large de arriba fue la decisión *técnica* correcta, y sigue siendo el
+> baseline documentado. Pero al llegar al despliegue (fase 3) chocó con el
+> costo de hosting: cargarlo pide ~2.5 GB de RAM siempre encendida, lo que
+> descarta los tiers gratuitos/baratos. Decisión de operaciones: mover los
+> embeddings a la **API de Gemini** (`gemini-embedding-001`, 768 dims) para
+> que el servidor no cargue ningún modelo — la imagen baja de ~3 GB a
+> cientos de MB y corre en un plan pequeño.
+>
+> Qué cambió en el código: `lorguru/embeddings.py` (nuevo) hace REST directo
+> a `embedContent` con `taskType` **RETRIEVAL_DOCUMENT** (cartas) /
+> **RETRIEVAL_QUERY** (consultas) — el mismo rol que tenían los prefijos
+> `passage:`/`query:` de E5 — y normaliza a L2 (obligatorio con dims < 3072).
+> `stores.py` deja de importar `sentence_transformers`; `Recursos` ya no
+> guarda un modelo sino la clave con la que embeber consultas.
+>
+> Rate limits (lo que pediste tener en cuenta): el free tier son ~100
+> requests/min **por proyecto** y una entrada por request. El build rota
+> `GEMINI_API_KEY_1`/`_2` en dos hilos, cada uno paceado bajo 100/min con
+> backoff ante 429 — si las claves son de proyectos separados suman ~170/min;
+> si comparten, el backoff las auto-throttlea sin romperse.
+>
+> Contrapartidas honestas: (1) cada consulta semántica es ahora una llamada
+> de red (barata, ~10-20 tokens, pero deja de ser offline — la capa A ya
+> hace esa llamada en los casos S/H; los F* siguen sin tocar red); (2) la
+> clave de embeddings es un costo del **servidor**, compartido entre todos
+> los visitantes (distinto del BYOK del agente); (3) no re-corrí la batería
+> de fraseo de este A/B contra Gemini — el gate real fue **capa A 16/16 con
+> el índice de Gemini** (incluye los 10 casos semánticos/híbridos), que sí se
+> volvió a verde. Para comparar formalmente Gemini vs e5 se podría extender
+> `scripts/comparar_embeddings.py`, pero el criterio de la fase ya se cumple.
+
 ## 9. Orden de trabajo sugerido
 
 1. `ingesta.py` y `stores.py` (sin agente) + `build_index.py` → corre el

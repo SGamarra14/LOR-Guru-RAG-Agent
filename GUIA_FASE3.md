@@ -207,29 +207,42 @@ inicial (API caída) tiene su propio mensaje.
 
 ## 6. Despliegue
 
-**Backend — imagen Docker con el índice horneado:**
+**Backend — imagen Docker con el índice YA construido copiado dentro.**
 
-- `requirements-api.txt`: el subconjunto mínimo para servir (sin notebook,
-  matplotlib ni pytest) — la imagen no carga el entorno de desarrollo.
-- `Dockerfile` (en la raíz): `python:3.12-slim`; instala **torch CPU
-  primero** desde el índice `download.pytorch.org/whl/cpu` (la variante por
-  defecto trae CUDA, ~3 GB que un host sin GPU no usa); instala
-  `requirements-api.txt`; copia `lorguru/`; y el paso clave: `RUN python -m
-  lorguru.build_index` — descarga datos, baja el modelo e5 (queda en la caché
-  HF de la imagen) y construye `chroma_db/` **en build**. El contenedor
-  arranca con `uvicorn` y solo carga; si el índice faltara, falla al arrancar
-  (por diseño, desde fase 2).
-- `.dockerignore`: todo lo que no sea `lorguru/` + requirements (sobre todo
-  `.env`, `webapp/`, `data/`, `chroma_db/` locales).
-- ¿Por qué hornear y no volumen persistente? A esta escala (~1,650 cartas,
-  índice de MBs) el índice es un artefacto de build reproducible: hornearlo
-  da despliegues atómicos (imagen nueva = índice nuevo) y funciona igual en
-  Railway/Render/Fly sin configurar discos. La alternativa con volumen (job
-  de `build_index` antes del release) queda para cuando el índice crezca o
-  quieras re-indexar sin re-desplegar — documentada, no implementada.
-- Host: cualquiera de los tres sirve; el costo real es la RAM (el modelo e5
-  carga ~2.5 GB — pide un plan con ≥4 GB). Variables: `ORIGENES_CORS` con el
-  dominio exacto de Vercel (p. ej. `https://lor-guru.vercel.app`).
+> Este patrón cambió con la migración a embeddings de Gemini (ver
+> GUIA_FASE2.md §8, nota de migración). Antes se horneaba el índice en el
+> build (`RUN python -m lorguru.build_index`) porque el modelo e5 era local y
+> gratis. Ahora construir el índice necesita **claves de API de Gemini**, y
+> un build de Docker no debe llevar secretos — así que se construye
+> localmente y se copia el resultado.
+
+- `requirements-api.txt`: el subconjunto mínimo para servir. Tras la
+  migración **ya no incluye torch ni sentence-transformers** — el servidor no
+  carga ningún modelo; embebe la consulta por REST a Gemini (`requests`). La
+  imagen pasa de ~3 GB a cientos de MB.
+- **Antes de `docker build`**, en tu máquina: `python -m lorguru.build_index`
+  (usa tus `GEMINI_API_KEY_1/_2`, deja `data/` y `chroma_db/` listos).
+- `Dockerfile` (en la raíz): `python:3.12-slim`; instala
+  `requirements-api.txt`; copia `lorguru/` **y los artefactos ya construidos
+  `data/` + `chroma_db/`** (solo vectores y metadata — no hay secretos ahí).
+  El contenedor arranca con `uvicorn` y solo carga; si el índice faltara,
+  falla al arrancar (por diseño, desde fase 2).
+- `.dockerignore`: excluye todo lo de dev y **siempre `.env`**, pero ahora
+  **permite** `data/` y `chroma_db/` (son la entrada del servidor).
+- ¿Por qué copiar y no hornear ni usar volumen? Copiar el índice pre-hecho
+  mantiene los despliegues atómicos (imagen = índice) sin meter claves en el
+  build ni configurar discos persistentes. La alternativa con volumen (job de
+  `build_index` como release step, con las claves de Gemini como env del job)
+  queda para cuando quieras re-indexar sin reconstruir la imagen —
+  documentada, no implementada.
+- **Runtime**: el servidor necesita `GEMINI_API_KEY` (para embeber cada
+  consulta — costo del servidor, no BYOK) y `ORIGENES_CORS` con el dominio
+  exacto de Vercel. Se pasan como variables de entorno del host, nunca en la
+  imagen.
+- Host: Railway/Render/Fly sirven de sobra; sin el modelo local el costo de
+  RAM se desploma — un plan pequeño (512 MB–1 GB) alcanza, e incluso los
+  tiers gratuitos con scale-to-zero se vuelven viables (el cold start ya no
+  recarga 2.5 GB de modelo).
 
 **Frontend — Vercel:**
 

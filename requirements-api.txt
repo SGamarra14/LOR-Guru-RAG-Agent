@@ -1,9 +1,13 @@
 # Dependencias MÍNIMAS para servir la API (las que usa la imagen Docker).
-# requirements.txt es el superset de desarrollo (notebook, tests, gráficas).
+# requirements.txt es el superset de desarrollo (notebook, tests, gráficas,
+# y el A/B de embeddings locales de la fase 2).
+#
+# Desde la migración a embeddings de Gemini (2026-07) el servidor YA NO carga
+# un modelo local: fuera torch y sentence-transformers (~2.5 GB menos). Los
+# embeddings de la consulta se piden por REST (requests) a gemini-embedding-001.
 pandas>=3.0
 requests>=2.32
 chromadb>=1.5
-sentence-transformers>=5.0
 python-dotenv>=1.2
 numpy>=2.0
 fastapi>=0.139
@@ -11,4 +15,5 @@ uvicorn[standard]>=0.32
 
 # PINEADO EXACTO. Nunca 1.82.7 ni 1.82.8: versiones comprometidas con malware
 # roba-credenciales, y esta librería maneja las API keys de los usuarios.
+# (Solo la usa el LLM del agente; los embeddings NO pasan por LiteLLM.)
 litellm==1.91.0

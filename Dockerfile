@@ -1,28 +1,34 @@
 # Imagen del backend de LoR Guru.
 #
-# Decisión de despliegue (GUIA_FASE3.md §6): el índice vectorial se HORNEA en
-# la imagen durante el build — el RUN de build_index descarga los datos de
-# cartas, baja el modelo de embeddings (queda en la caché de HF de la imagen)
-# y construye chroma_db/. El contenedor arranca sirviendo, nunca
-# construyendo: si el índice faltara, la API falla al arrancar por diseño.
-# Alternativa documentada en la guía: volumen persistente + job de build.
+# Decisión de despliegue (revisada tras migrar a embeddings de Gemini,
+# 2026-07): el índice vectorial se CONSTRUYE LOCALMENTE antes del build de la
+# imagen (`python -m lorguru.build_index`, que usa tus claves de Gemini) y se
+# COPIA ya hecho. Ventajas frente a hornearlo en el build:
+#   - No metemos claves de API en el build de Docker (el build necesitaría
+#     GEMINI_API_KEY_*; un build no debe llevar secretos).
+#   - El chroma_db/ resultante solo contiene vectores y metadata — NO secretos.
+#   - La imagen ya no necesita torch ni sentence-transformers (~2.5 GB menos).
+# El contenedor arranca sirviendo; si el índice no estuviera, la API falla al
+# arrancar por diseño (separación indexado/servido de la fase 2).
+#
+# ANTES de `docker build`, en tu máquina:
+#   python -m lorguru.build_index          # deja data/ y chroma_db/ listos
+#
+# En RUNTIME el servidor necesita GEMINI_API_KEY (para embeber las consultas)
+# y ORIGENES_CORS — se pasan como variables de entorno del host, no en la
+# imagen.
 FROM python:3.12-slim
 
 WORKDIR /app
-
-# Torch CPU explícito ANTES de requirements: la variante por defecto trae
-# CUDA (~3 GB extra que un servidor sin GPU no usa).
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
 COPY requirements-api.txt .
 RUN pip install --no-cache-dir -r requirements-api.txt
 
 COPY lorguru/ lorguru/
+# Artefactos ya construidos localmente (no secretos): datos de cartas + índice.
+COPY data/ data/
+COPY chroma_db/ chroma_db/
 
-# Hornea datos + modelo + índice en la imagen (~3 GB por el modelo e5).
-RUN python -m lorguru.build_index
-
-# ORIGENES_CORS se define en el host (el dominio real de Vercel).
 ENV PORT=8000
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn lorguru.api:app --host 0.0.0.0 --port ${PORT}"]

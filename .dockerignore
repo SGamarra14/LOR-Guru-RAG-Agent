@@ -1,9 +1,9 @@
-# La imagen solo necesita lorguru/ + requirements-api.txt; todo lo demás fuera.
+# La imagen necesita lorguru/ + requirements-api.txt + los artefactos ya
+# construidos (data/ y chroma_db/, que NO contienen secretos). Todo lo demás
+# fuera. OJO: .env SIEMPRE excluido (el runtime recibe las claves por entorno).
 .git
 .env
 .env.*
-data/
-chroma_db/
 webapp/
 tests/
 scripts/

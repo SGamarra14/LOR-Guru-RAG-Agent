@@ -15,24 +15,25 @@ sirve la API llama a `cargar_recursos`, que CARGA el índice ya construido y
 falla rápido —con instrucciones— si no existe. El servidor nunca decide si
 reconstruir.
 """
+import os
 from dataclasses import dataclass
-from pathlib import Path
 
 import chromadb
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 
+from . import embeddings
 from .ingesta import RAIZ_PROYECTO, RUTA_CARTAS, RUTA_GLOBALS, cargar_cartas, cargar_glosario
 
 # --- Modelo de embeddings -----------------------------------------------
-# Elegido por el A/B de fase 2 (scripts/comparar_embeddings.py; tabla en
-# GUIA_FASE2.md sección 8): e5-large iguala el set estándar del MiniLM
-# (10/10) y lo cuadruplica en sensibilidad al fraseo (28/50 vs 7/50) —
-# incluida la formulación "Otorgo Barrera" que falló en la capa B de fase 1.
-# La familia E5 EXIGE estos prefijos en documentos y consultas.
-MODELO_EMBEDDINGS = "intfloat/multilingual-e5-large"
-PREFIJO_DOCUMENTO = "passage: "
-PREFIJO_CONSULTA = "query: "
+# Historia: fase 1 MiniLM → fase 2 e5-large local (A/B en
+# scripts/comparar_embeddings.py, tabla en GUIA_FASE2.md §8) → migración
+# 2026-07 a la API de Gemini (gemini-embedding-001) para poder hospedar
+# barato: el servidor ya no carga un modelo de ~2.5 GB. El "task type"
+# RETRIEVAL_DOCUMENT/QUERY cumple el papel que tenían los prefijos de E5.
+# El tag guardado en la colección incluye las dimensiones: si cambian,
+# cargar_indice exige reconstruir.
+MODELO_EMBEDDINGS = embeddings.MODELO_EMBEDDINGS
+TAG_INDICE = f"{MODELO_EMBEDDINGS}@{embeddings.DIMENSIONES}"
 
 RUTA_CHROMA = str(RAIZ_PROYECTO / "chroma_db")
 NOMBRE_COLECCION = "cartas_lor"
@@ -102,13 +103,12 @@ def construir_texto_carta(fila, glosario) -> str:
     return " ".join(partes)
 
 
-def cargar_modelo_embeddings() -> SentenceTransformer:
-    return SentenceTransformer(MODELO_EMBEDDINGS)
-
-
-def construir_indice(df, glosario, modelo_st, reconstruir: bool = False):
+def construir_indice(df, glosario, claves, reconstruir: bool = False):
     """Construye (o completa) la colección Chroma. SOLO para el paso de build
-    (`python -m lorguru.build_index`) — el servidor nunca llama esto."""
+    (`python -m lorguru.build_index`) — el servidor nunca llama esto.
+
+    `claves`: lista de API keys de Gemini (GEMINI_API_KEY_1/_2) que se rotan
+    para respetar el RPM del free tier (ver lorguru/embeddings.py)."""
     cliente = chromadb.PersistentClient(path=RUTA_CHROMA)
     if reconstruir:
         try:
@@ -117,10 +117,10 @@ def construir_indice(df, glosario, modelo_st, reconstruir: bool = False):
             pass
     coleccion = cliente.get_or_create_collection(
         NOMBRE_COLECCION,
-        metadata={"hnsw:space": "cosine", "modelo": MODELO_EMBEDDINGS},
+        metadata={"hnsw:space": "cosine", "modelo": TAG_INDICE},
     )
     modelo_indice = (coleccion.metadata or {}).get("modelo", "")
-    if coleccion.count() == len(df) and modelo_indice == MODELO_EMBEDDINGS:
+    if coleccion.count() == len(df) and modelo_indice == TAG_INDICE:
         print(f"Índice ya construido ({coleccion.count()} vectores).")
         return coleccion
 
@@ -128,15 +128,12 @@ def construir_indice(df, glosario, modelo_st, reconstruir: bool = False):
         cliente.delete_collection(NOMBRE_COLECCION)
         coleccion = cliente.get_or_create_collection(
             NOMBRE_COLECCION,
-            metadata={"hnsw:space": "cosine", "modelo": MODELO_EMBEDDINGS},
+            metadata={"hnsw:space": "cosine", "modelo": TAG_INDICE},
         )
 
     textos = [construir_texto_carta(fila, glosario) for _, fila in df.iterrows()]
-    print(f"Generando embeddings de {len(textos)} cartas con {MODELO_EMBEDDINGS}...")
-    embeddings = modelo_st.encode(
-        [PREFIJO_DOCUMENTO + t for t in textos],
-        batch_size=64, show_progress_bar=True, normalize_embeddings=True,
-    )
+    print(f"Generando embeddings de {len(textos)} cartas con {TAG_INDICE}...")
+    vectores = embeddings.embed_documentos(textos, claves)
     metadatas = [
         {
             "cardCode": fila["cardCode"],
@@ -153,7 +150,7 @@ def construir_indice(df, glosario, modelo_st, reconstruir: bool = False):
     for i in range(0, len(df), TAMANO_LOTE):
         coleccion.add(
             ids=df["cardCode"].iloc[i:i + TAMANO_LOTE].tolist(),
-            embeddings=embeddings[i:i + TAMANO_LOTE].tolist(),
+            embeddings=vectores[i:i + TAMANO_LOTE],
             documents=textos[i:i + TAMANO_LOTE],
             metadatas=metadatas[i:i + TAMANO_LOTE],
         )
@@ -179,10 +176,10 @@ def cargar_indice(n_cartas_esperado: int):
             "python -m lorguru.build_index --reconstruir"
         )
     modelo_indice = (coleccion.metadata or {}).get("modelo", "")
-    if modelo_indice != MODELO_EMBEDDINGS:
+    if modelo_indice != TAG_INDICE:
         raise RuntimeError(
             f"El índice fue construido con '{modelo_indice}' pero el código usa "
-            f"'{MODELO_EMBEDDINGS}'. Reconstrúyelo: "
+            f"'{TAG_INDICE}'. Reconstrúyelo: "
             "python -m lorguru.build_index --reconstruir"
         )
     return coleccion
@@ -192,15 +189,18 @@ def cargar_indice(n_cartas_esperado: int):
 
 @dataclass
 class Recursos:
-    """Todo lo que la API necesita cargado en memoria para servir."""
+    """Todo lo que la API necesita en memoria para servir. Ya no carga un
+    modelo pesado: solo la clave con la que embeber las consultas (costo del
+    servidor, no BYOK — el LLM del agente sí es BYOK)."""
     df: pd.DataFrame
     glosario: dict
-    modelo_st: SentenceTransformer
+    clave_embeddings: str
     coleccion: object
 
 
 def cargar_recursos() -> Recursos:
-    """Carga datos, glosario, modelo de embeddings e índice YA construido.
+    """Carga datos, glosario e índice YA construido, y toma del entorno la
+    clave de embeddings del servidor (GEMINI_API_KEY).
 
     Es lo único que llama el proceso que sirve (lifespan de FastAPI, tests).
     No descarga datos ni construye índices: si falta algo, RuntimeError con
@@ -213,9 +213,11 @@ def cargar_recursos() -> Recursos:
         )
     df = cargar_cartas()
     glosario = cargar_glosario()
-    modelo_st = cargar_modelo_embeddings()
     coleccion = cargar_indice(n_cartas_esperado=len(df))
-    return Recursos(df=df, glosario=glosario, modelo_st=modelo_st,
+    # No falla si no está: /cartas/filtrar no la usa. buscar_semantica sí, y
+    # dará un error claro en ese momento si falta.
+    clave = os.environ.get("GEMINI_API_KEY", "")
+    return Recursos(df=df, glosario=glosario, clave_embeddings=clave,
                     coleccion=coleccion)
 
 
@@ -225,6 +227,7 @@ def buscar_semantica(recursos: Recursos, texto_consulta: str, top_k: int = 10,
 
     Patrón híbrido validado en fase 1: filtrar exacto primero en el DataFrame
     y restringir Chroma al subconjunto vía where={"cardCode": {"$in": ...}}.
+    La consulta se embebe con la API de Gemini (taskType RETRIEVAL_QUERY).
     """
     where = None
     if filtro_metadata:
@@ -233,10 +236,9 @@ def buscar_semantica(recursos: Recursos, texto_consulta: str, top_k: int = 10,
             return subconjunto.assign(distancia=pd.Series(dtype=float))
         where = {"cardCode": {"$in": subconjunto["cardCode"].tolist()}}
 
-    vector = recursos.modelo_st.encode(
-        [PREFIJO_CONSULTA + texto_consulta], normalize_embeddings=True)
+    vector = embeddings.embed_consulta(texto_consulta, recursos.clave_embeddings)
     resultado = recursos.coleccion.query(
-        query_embeddings=vector.tolist(), n_results=top_k, where=where
+        query_embeddings=[vector], n_results=top_k, where=where
     )
     codigos = resultado["ids"][0]
     if not codigos:

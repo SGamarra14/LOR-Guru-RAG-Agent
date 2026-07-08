@@ -273,6 +273,7 @@
       "type": "string",
       "enum": [
        "citadas",
+       "nombres",
        "ultima_llamada",
        "ninguna"
       ],

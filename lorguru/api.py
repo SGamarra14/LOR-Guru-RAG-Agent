@@ -142,7 +142,7 @@ class AgenteResponse(BaseModel):
     respuesta: str
     cartas: list[CartaOut]
     llamadas: list[LlamadaTool]
-    metodo_cartas: Literal["citadas", "ultima_llamada", "ninguna"]
+    metodo_cartas: Literal["citadas", "nombres", "ultima_llamada", "ninguna"]
 
 
 class ModeloOut(BaseModel):

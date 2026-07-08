@@ -9,7 +9,9 @@ import type { Llamada, RespuestaAgente } from "@/lib/tipos";
 
 const EXPLICACION_METODO: Record<RespuestaAgente["metodo_cartas"], string> = {
   citadas:
-    "El agente citó explícitamente estas cartas en su respuesta final (línea CARTAS:).",
+    "El agente citó explícitamente estas cartas en su respuesta final (línea CARTAS:), tras curar los resultados de la búsqueda.",
+  nombres:
+    "El agente no dejó la lista de códigos, pero mencionó estas cartas por su nombre en la respuesta; se muestran esas (su selección curada).",
   ultima_llamada:
     "El agente no citó cartas explícitamente; se muestran las de su última búsqueda con resultados.",
   ninguna: "El agente no encontró cartas para esta consulta.",

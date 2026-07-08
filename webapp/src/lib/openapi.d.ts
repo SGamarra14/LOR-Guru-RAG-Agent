@@ -160,7 +160,7 @@ export interface components {
              * Metodo Cartas
              * @enum {string}
              */
-            metodo_cartas: "citadas" | "ultima_llamada" | "ninguna";
+            metodo_cartas: "citadas" | "nombres" | "ultima_llamada" | "ninguna";
         };
         /** BusquedaRequest */
         BusquedaRequest: {

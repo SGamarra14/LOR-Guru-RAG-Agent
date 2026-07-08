@@ -304,11 +304,21 @@ rendirte, y explica al usuario qué ajustaste.
 CARTAS, en primera persona: "Curo a tu nexo", "Lanzo Aturdir a un enemigo", "Inflijo \
 daño a TODAS las unidades". Recupera mucho mejor que describir el efecto en abstracto.
 
-FORMATO OBLIGATORIO DEL FINAL DE TU RESPUESTA: la última línea debe ser exactamente
+CURACIÓN (MUY IMPORTANTE): buscar_semantica devuelve las cartas MÁS PARECIDAS por \
+significado, pero el parecido NO garantiza que cumplan la consulta — la cola de \
+resultados suele traer ruido. Tu trabajo es filtrar ese ruido: LEE la `descripcion` de \
+CADA carta devuelta y quédate SOLO con las que de verdad cumplen lo que pidió el \
+usuario. Descarta sin piedad las que solo se parecen de lejos. Una respuesta de 4 \
+cartas correctas es mejor que una de 12 donde la mitad no aplica. Si una carta buena no \
+apareció en los resultados, sube top_k o reformula la búsqueda en vez de conformarte.
+
+FORMATO OBLIGATORIO DEL FINAL DE TU RESPUESTA (no lo omitas nunca): la última línea debe \
+ser exactamente
 CARTAS: code1, code2, ...
-con los cardCode de las cartas que recomiendas (máximo {MAX_CARTAS_TOOL}), en orden de \
-relevancia. Si no encontraste ninguna, termina con "CARTAS: ninguna". No agregues nada \
-después de esa línea.
+con los cardCode EXACTAMENTE de las cartas que pasaron tu curación (las que citas en tu \
+respuesta), máximo {MAX_CARTAS_TOOL}, en orden de relevancia. NO incluyas aquí cartas \
+que descartaste por no cumplir. Si ninguna cumple, termina con "CARTAS: ninguna". No \
+agregues nada después de esa línea.
 
 Los parámetros region, keywords, rareza y velocidad usan los valores Ref EN INGLÉS de \
 estos lookups (el usuario hablará en español):
@@ -363,6 +373,25 @@ def _limpiar_respuesta(texto: str) -> str:
                   flags=re.IGNORECASE | re.DOTALL).strip()
 
 
+def cartas_por_nombre(texto: str, recuperadas: dict) -> list:
+    """Fallback de curación: de las cartas que los tools recuperaron, quédate
+    con aquellas cuyo NOMBRE aparece en la respuesta del agente.
+
+    Los modelos citan cartas por nombre en la prosa aunque olviden la línea
+    CARTAS: — esto recupera SU selección (curada) en vez de volcar los hits
+    crudos del retrieval. `recuperadas` es {cardCode: nombre} en orden de
+    aparición. El guard de longitud evita falsos positivos con nombres muy
+    cortos.
+    """
+    t = (texto or "").lower()
+    codigos = []
+    for codigo, nombre in recuperadas.items():
+        n = (nombre or "").lower().strip()
+        if len(n) >= 4 and n in t:
+            codigos.append(codigo)
+    return codigos
+
+
 # --- Loop del agente ------------------------------------------------------
 
 def eventos_agente(recursos: Recursos, consulta: str, api_key: str,
@@ -388,6 +417,7 @@ def eventos_agente(recursos: Recursos, consulta: str, api_key: str,
                 {"role": "user", "content": consulta}]
     llamadas = []
     codigos_ultima = []
+    recuperadas = {}  # {cardCode: nombre} de TODAS las llamadas, para el fallback por nombre
     texto_final = ""
 
     yield {"tipo": "inicio", "proveedor": proveedor, "modelo": modelo}
@@ -424,6 +454,8 @@ def eventos_agente(recursos: Recursos, consulta: str, api_key: str,
                              "total": salida.get("total", 0)})
             if salida.get("cartas"):
                 codigos_ultima = [c["cardCode"] for c in salida["cartas"]]
+                for c in salida["cartas"]:
+                    recuperadas.setdefault(c["cardCode"], c["nombre"])
             yield {"tipo": "tool_result", "tool": tc.function.name,
                    "total": salida.get("total", 0),
                    "error": salida.get("error")}
@@ -433,13 +465,24 @@ def eventos_agente(recursos: Recursos, consulta: str, api_key: str,
                 "content": json.dumps(salida, ensure_ascii=False),
             })
 
+    # Selección de las cartas finales, de más a menos curada:
+    # 1) citadas: la línea CARTAS: (o cardCodes en el texto) — la curación
+    #    explícita del agente.
+    # 2) nombres: si no citó códigos, las cartas recuperadas cuyo NOMBRE
+    #    mencionó en la prosa — sigue siendo SU selección, no el retrieval crudo.
+    # 3) ultima_llamada: red de seguridad — la última llamada con resultados
+    #    (correcto para filtros puros donde todo el resultado es válido).
     codigos_validos = set(recursos.df["cardCode"])
     citadas = extraer_cartas_citadas(texto_final, codigos_validos)
+    por_nombre = cartas_por_nombre(texto_final, recuperadas)
     if citadas:
         metodo = "citadas"
         codigos = citadas
+    elif por_nombre:
+        metodo = "nombres"
+        codigos = por_nombre
     elif codigos_ultima:
-        metodo = "ultima_llamada"   # fallback: el criterio viejo de fase 1
+        metodo = "ultima_llamada"
         codigos = codigos_ultima
     else:
         metodo = "ninguna"

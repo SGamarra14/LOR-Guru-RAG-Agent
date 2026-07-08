@@ -351,12 +351,18 @@ texto de carta (p. ej. Aturdir -> "Lanzo Aturdir a un enemigo"):
 def extraer_cartas_citadas(texto: str, codigos_validos: set) -> list:
     """Extrae los cardCode citados en la respuesta final del agente.
 
-    Prioriza la línea 'CARTAS: ...' (el formato obligatorio del system
+    Prioriza el bloque 'CARTAS: ...' (el formato obligatorio del system
     prompt); si no está, busca códigos en todo el texto. Devuelve solo
     códigos que existen, sin duplicados y en orden de aparición.
+
+    DOTALL a propósito: con listas largas el modelo suele ENVOLVER los códigos
+    en varias líneas tras 'CARTAS:'; capturar solo la primera línea perdía la
+    mayoría (o dejaba una sola carta). Como los cardCode solo aparecen en este
+    bloque —nunca en la prosa, que usa nombres— capturar hasta el final es
+    seguro.
     """
     fuente = texto or ""
-    coincidencia = re.search(r"CARTAS:\s*(.+)", fuente, re.IGNORECASE)
+    coincidencia = re.search(r"CARTAS:\s*(.+)", fuente, re.IGNORECASE | re.DOTALL)
     if coincidencia:
         fuente = coincidencia.group(1)
     vistos, codigos = set(), []

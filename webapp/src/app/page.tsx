@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FormularioBusqueda } from "@/componentes/FormularioBusqueda";
@@ -72,9 +73,9 @@ export default function Pagina() {
             <h2 className="font-display text-xl text-primary">
               Respuesta del agente
             </h2>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">
-              {resultado.respuesta}
-            </p>
+            <div className="prosa text-sm leading-relaxed">
+              <ReactMarkdown>{resultado.respuesta}</ReactMarkdown>
+            </div>
             <PanelTransparencia
               llamadas={resultado.llamadas}
               metodo={resultado.metodo_cartas}

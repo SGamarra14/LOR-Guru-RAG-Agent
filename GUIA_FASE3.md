@@ -146,13 +146,16 @@ sonnet-5 puede venir verificado).
   `page.tsx`); al cambiarlo, el modelo se resetea al `modelo_default` del
   nuevo proveedor.
 - El de modelo lista `modelos` del proveedor actual; el verificado lleva un
-  `Badge` "Recomendado · verificado 16/16". Bajo el select, la `nota` del
-  modelo elegido (o un texto honesto por defecto: "este modelo no ha corrido
-  el set de evaluación del proyecto").
+  `Badge` con solo la palabra "Recomendado" (la evidencia detallada — 16/16,
+  notas de evaluación — vive en la guía y en la API, no satura la UI). No
+  muestres la `nota` bajo el select: mantén el selector limpio.
 
 **`CampoApiKey`** — la clave se trata como el secreto que es:
 
 - `Input type="password"` (con botón Ver/Ocultar), `autoComplete="off"`.
+- Placeholder que educa sobre higiene de claves: "Ingresa tu API Key (Se
+  recomienda desechar/revocar la API tras su uso. No se guarda en el
+  servidor)."
 - Vive en el estado de React; **no** se persiste por defecto.
 - Persistirla es **opt-in visible**: un checkbox "Recordar esta clave en este
   navegador (localStorage)" con la advertencia de no usarlo en equipos
@@ -163,27 +166,44 @@ sonnet-5 puede venir verificado).
 
 **`FormularioBusqueda`** — compone textarea de consulta (Enter envía,
 Shift+Enter salto de línea), chips de consultas de ejemplo (las del set de
-evaluación son buenos candidatos), el selector, el campo de clave y el botón
-(deshabilitado sin consulta o sin clave; en curso muestra "Consultando…" y
-aparece un botón Cancelar).
+evaluación son buenos candidatos), la configuración y el botón (deshabilitado
+sin consulta o sin clave; en curso muestra "Consultando…" y aparece un botón
+Cancelar).
+
+- **Acordeón "Configuración del Agente"**: agrupa el selector
+  proveedor→modelo y el campo de API key en un `<details>/<summary>`
+  controlado (estado React + `onToggle`). Arranca **abierto** (hay que
+  configurar la clave) y se **colapsa solo al lanzar la primera búsqueda** —
+  despeja la pantalla una vez configurado, sin esconder nada antes de tiempo.
+  El `summary` muestra un resumen del estado cuando está cerrado
+  ("Claude (Anthropic) · Claude Sonnet 5 · clave lista/falta la clave") y un
+  chevron que rota con `group-open:`.
 
 ## 4. Resultados
 
-- **`TarjetaCarta`**: la imagen (`carta.imagen`) con `loading="lazy"`,
-  `alt` descriptivo, y un pie con nombre/coste/regiones/keywords. Dos
+- **`TarjetaCarta`**: SOLO la imagen (`carta.imagen`), con `loading="lazy"` y
+  `alt` descriptivo — sin pie de metadata. El arte de la carta ya muestra
+  nombre, coste, región y stats: repetirlos en texto es carga cognitiva
+  redundante; el marco (borde dorado + esquinas + glow cian al hover) abraza
+  únicamente los bordes de la imagen, dejando una galería visual limpia. Dos
   detalles del dato real: las URLs del Data Dragon vienen con `http://` —
   crea `urlImagenSegura` en `lib/api.ts` que las reescriba a `https://` (si
   no, contenido mixto bloqueado en producción) — y alguna imagen puede
-  faltar: maneja `onError` mostrando un fallback con nombre + descripción.
+  faltar: maneja `onError` mostrando un fallback textual con nombre +
+  descripción (el único caso donde el texto sí hace falta, porque no hay
+  arte que lo supla).
 - **`GridCartas`**: grid responsivo (2 → 5 columnas), key por `cardCode`.
 - **`PanelTransparencia`** (colapsable, cerrado por defecto): el "por qué"
   de los resultados — la explicación de `metodo_cartas` en lenguaje llano
-  (citadas / última llamada / ninguna) y la lista numerada de `llamadas`
-  con tool + argumentos + total. Es la conexión con la idea original del
-  proyecto: mostrar cómo decidió el agente, no solo qué devolvió.
-- La **respuesta en texto** del agente se muestra prominente (es la
-  explicación de por qué esas cartas), con el panel de transparencia debajo
-  y el grid después.
+  (citadas / nombres / última llamada / ninguna) y la lista numerada de
+  `llamadas` con tool + argumentos + total. Es la conexión con la idea
+  original del proyecto: mostrar cómo decidió el agente, no solo qué devolvió.
+- La **respuesta del agente** se muestra prominente y se renderiza como
+  **Markdown** (`react-markdown`): los modelos responden con negritas,
+  cursivas y listas — mostrarla como string plano deja `**` y `*` visibles.
+  Estilízala con una clase propia (`.prosa` en `globals.css`): negritas en
+  dorado, cursivas en cian, viñetas `◆` doradas, encabezados con la fuente
+  display. El panel de transparencia va debajo y el grid después.
 
 ## 5. Manejo de errores
 
@@ -277,7 +297,13 @@ shadcn es trabajo de **variables**, casi todo en `globals.css`:
 - **Fondos y marcos** — dos utilidades CSS propias:
   - `fondo-grimorio` (en el `body`): gradientes radiales oscuros +
     **ruido sutil** con un SVG inline de `feTurbulence` como data-URI, para
-    que el fondo no sea plano.
+    que el fondo no sea plano. Encima, una **aurora animada**: un
+    pseudo-elemento `::before` fijo (`position: fixed; z-index: -1`) con 3-4
+    manchas `radial-gradient` en la MISMA paleta (azules noche + un susurro
+    de cian y dorado), `filter: blur(~50px)` y un `@keyframes` que las
+    traslada/escala muy lento (~45s, solo `transform` — barato para la GPU).
+    Debe ser sutil: no compite con la lectura ni con los paneles. Respeta
+    `prefers-reduced-motion` desactivando la animación.
   - `marco-panel` y `marco-carta`: borde 1px dorado translúcido, esquinas
     poco redondeadas (`--radius` bajo: las UIs de Riot son angulosas),
     **esquinas marcadas** con pseudo-elementos (dos trazos dorados en las

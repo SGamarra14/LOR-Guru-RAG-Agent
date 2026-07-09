@@ -77,6 +77,96 @@ body {
   background-attachment: fixed;
 }
 
+/* Aurora animada: manchas difusas en la MISMA paleta (azules noche + un
+   susurro de cian/dorado) flotando muy lento detrás del contenido. Sutil a
+   propósito — no debe competir con la lectura ni con los paneles. */
+@keyframes aurora-flotar {
+  0%   { transform: translate3d(-5%, -4%, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate3d(4%, 5%, 0) scale(1.12) rotate(10deg); }
+  100% { transform: translate3d(-5%, -4%, 0) scale(1) rotate(0deg); }
+}
+
+.fondo-grimorio::before {
+  content: "";
+  position: fixed;
+  inset: -25%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 32% at 22% 28%, rgba(38, 92, 158, 0.20), transparent 70%),
+    radial-gradient(30% 28% at 78% 18%, rgba(45, 212, 212, 0.06), transparent 70%),
+    radial-gradient(34% 30% at 66% 82%, rgba(200, 162, 75, 0.05), transparent 70%),
+    radial-gradient(28% 26% at 32% 78%, rgba(58, 76, 145, 0.14), transparent 70%);
+  filter: blur(52px);
+  animation: aurora-flotar 48s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fondo-grimorio::before {
+    animation: none;
+  }
+}
+
+/* Tipografía de la respuesta del agente (Markdown renderizado). */
+.prosa p {
+  margin-bottom: 0.75rem;
+}
+.prosa p:last-child {
+  margin-bottom: 0;
+}
+.prosa strong {
+  color: var(--primary);
+  font-weight: 700;
+}
+.prosa em {
+  font-style: italic;
+  color: color-mix(in srgb, var(--accent) 80%, var(--foreground));
+}
+.prosa h1,
+.prosa h2,
+.prosa h3,
+.prosa h4 {
+  font-family: var(--font-display), ui-serif, serif;
+  color: var(--primary);
+  margin: 1rem 0 0.5rem;
+  line-height: 1.3;
+}
+.prosa h1 { font-size: 1.25rem; }
+.prosa h2 { font-size: 1.15rem; }
+.prosa h3, .prosa h4 { font-size: 1rem; }
+.prosa ul {
+  list-style: none;
+  margin: 0.5rem 0 0.75rem;
+}
+.prosa ul > li {
+  position: relative;
+  padding-left: 1.15rem;
+  margin-bottom: 0.35rem;
+}
+.prosa ul > li::before {
+  content: "◆";
+  position: absolute;
+  left: 0;
+  top: 0.32em;
+  font-size: 0.6rem;
+  color: var(--primary);
+}
+.prosa ol {
+  list-style: decimal;
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.4rem;
+}
+.prosa ol > li {
+  margin-bottom: 0.35rem;
+}
+.prosa code {
+  background: var(--secondary);
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  font-size: 0.85em;
+}
+
 /* Marcos ornamentados: borde dorado translúcido + esquinas marcadas con
    pseudo-elementos — evocan el marco de una carta sin replicar a Riot. */
 .marco-panel,

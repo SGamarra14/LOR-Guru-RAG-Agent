@@ -52,7 +52,7 @@ export function CampoApiKey({ proveedor, valor, onCambio }: Props) {
           type={mostrar ? "text" : "password"}
           autoComplete="off"
           spellCheck={false}
-          placeholder="Se usa solo para esta búsqueda; no se guarda en el servidor"
+          placeholder="Ingresa tu API Key (Se recomienda desechar/revocar la API tras su uso. No se guarda en el servidor)."
           value={valor}
           onChange={(e) => cambiar(e.target.value)}
         />

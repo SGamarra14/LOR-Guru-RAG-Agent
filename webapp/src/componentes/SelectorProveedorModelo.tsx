@@ -69,7 +69,7 @@ export function SelectorProveedorModelo({
                   {m.nombre}
                   {m.verificado && (
                     <Badge className="bg-primary/15 text-primary border-primary/40">
-                      Recomendado · verificado 16/16
+                      Recomendado
                     </Badge>
                   )}
                 </span>
@@ -77,12 +77,6 @@ export function SelectorProveedorModelo({
             ))}
           </SelectContent>
         </Select>
-        {actual && (
-          <p className="text-xs text-muted-foreground">
-            {actual.modelos.find((m) => m.id === modelo)?.nota ||
-              "Este modelo no ha corrido el set de evaluación del proyecto."}
-          </p>
-        )}
       </div>
     </div>
   );

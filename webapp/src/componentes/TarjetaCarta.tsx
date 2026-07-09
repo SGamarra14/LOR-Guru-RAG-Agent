@@ -1,6 +1,9 @@
 "use client";
-// Una carta del grid. El marco evoca una carta de LoR (borde dorado, esquinas
-// marcadas, brillo cian al pasar el cursor) sin replicar el diseño de Riot.
+// Una carta del grid. El marco (borde dorado, esquinas marcadas, glow cian al
+// hover) abraza SOLO la imagen: el arte de la carta ya muestra nombre, coste,
+// región y stats, así que no se repite esa metadata en texto — galería limpia.
+// El fallback textual existe únicamente para imágenes rotas, donde no hay
+// arte que cuente nada.
 import { useState } from "react";
 
 import { urlImagenSegura } from "@/lib/api";
@@ -11,7 +14,10 @@ export function TarjetaCarta({ carta }: { carta: Carta }) {
   const src = urlImagenSegura(carta.imagen);
 
   return (
-    <figure className="group marco-carta relative overflow-hidden transition-transform duration-200 hover:-translate-y-1">
+    <figure
+      className="group marco-carta relative overflow-hidden transition-transform duration-200 hover:-translate-y-1"
+      title={`${carta.nombre} — ${carta.tipo}, coste ${carta.coste}`}
+    >
       {conError || !src ? (
         <div className="flex aspect-[680/1024] flex-col items-center justify-center gap-2 bg-secondary p-4 text-center">
           <span className="font-display text-lg text-primary">{carta.nombre}</span>
@@ -28,16 +34,6 @@ export function TarjetaCarta({ carta }: { carta: Carta }) {
           className="aspect-[680/1024] w-full object-cover"
         />
       )}
-      <figcaption className="border-t border-border/60 bg-card/95 px-3 py-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="font-display text-sm text-primary">{carta.nombre}</span>
-          <span className="shrink-0 text-xs text-accent">{carta.coste} maná</span>
-        </div>
-        <div className="mt-0.5 truncate text-xs text-muted-foreground">
-          {carta.regiones.join(" · ")} · {carta.tipo}
-          {carta.keywords.length > 0 && ` · ${carta.keywords.join(", ")}`}
-        </div>
-      </figcaption>
     </figure>
   );
 }

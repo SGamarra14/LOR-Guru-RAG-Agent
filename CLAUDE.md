@@ -119,6 +119,21 @@ Checklist de avance:
       + .dockerignore; instrucciones de deploy en GUIA_FASE3.md §6
 - [x] GUIA_FASE3.md (completa, con la nota de primitivas a mano)
 
+- [x] Pulido UX (post-cierre, pedido por Sebas): fondo aurora animado sutil
+      (pseudo-elemento fijo, misma paleta, respeta prefers-reduced-motion);
+      acordeón "Configuración del Agente" (details/summary controlado, se
+      colapsa al lanzar la búsqueda, resumen en el summary); insignia del
+      modelo verificado reducida a "Recomendado" y sin nota bajo el select;
+      placeholder de API key con recomendación de revocar la clave tras su
+      uso; respuesta del agente renderizada como Markdown (react-markdown +
+      estilos `.prosa`); galería limpia (TarjetaCarta sin pie de metadata,
+      marco abrazando solo la imagen). Verificado en navegador.
+
+⚠️ Trampa del entorno descubierta: la caché persistente de Turbopack (Next
+16, `webapp/.next`) puede servir `globals.css` VIEJO aunque el archivo cambie
+y hasta tras reiniciar el dev server ("Compiled" engañoso). Si un cambio de
+CSS no aparece: borrar `webapp/.next` y reiniciar.
+
 Pendiente que requiere cuentas del usuario (no automatizable desde aquí):
 deploy real a Vercel (root dir `webapp/`, var `NEXT_PUBLIC_API_URL`) y al
 host del backend (imagen del Dockerfile; var `ORIGENES_CORS` con el dominio

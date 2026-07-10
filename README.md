@@ -11,7 +11,7 @@ semántica, o ambos, y te explica por qué eligió esas cartas.
 > flujo que sigue el agente**: qué herramienta llamó, con qué argumentos y cómo
 > curó los resultados.
 
-![Captura de LoR Guru](docs/captura.png)
+<img width="1285" height="857" alt="https-lor-guru-rag-agent vercel apsp-" src="https://github.com/user-attachments/assets/265d1735-5e30-4be0-aae7-af22945bc398" />
 
 ---
 

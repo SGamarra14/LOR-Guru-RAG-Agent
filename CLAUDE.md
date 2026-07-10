@@ -9,7 +9,11 @@ sesión nueva, empieza leyendo esto.
 
 ## Estado por fase
 
-- **Fase 1 — Notebook PoC**: ✅ terminada. `GUIA.md` + `lor_guru_fase1.ipynb`.
+> Las guías y el notebook viven ahora en `docs/` (`docs/GUIA_FASE1.md`,
+> `docs/GUIA_FASE2.md`, `docs/GUIA_FASE3.md`, `docs/lor_guru_fase1.ipynb`).
+> Abajo se citan por su nombre corto.
+
+- **Fase 1 — Notebook PoC**: ✅ terminada. `GUIA_FASE1.md` + `lor_guru_fase1.ipynb`.
   Capa A 16/16, capa B 14/16.
 - **Fase 2 — API FastAPI**: ✅ terminada. `GUIA_FASE2.md` + `lorguru/` +
   `tests/`. Capa A 16/16 (vía endpoints), capa B Claude **16/16**. Gemini

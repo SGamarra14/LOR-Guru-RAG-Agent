@@ -1,61 +1,142 @@
 # LoR Guru
 
-Búsqueda de cartas de *Legends of Runeterra* en lenguaje natural (español):
-filtros exactos para lo estructurado, embeddings para el texto de habilidades,
-y un agente LLM con tool use que decide cuál usar.
+**Busca cartas de _Legends of Runeterra_ describiéndolas en español natural.**
+En vez de filtros manuales o un buscador de texto exacto, un agente LLM decide
+—según tu consulta— si usar filtros estructurados, búsqueda semántica, o ambos.
 
-Cada fase tiene dos entregables espejo: una **guía** para recrearla desde cero
-(especificación sin código resuelto, con las decisiones de diseño explicadas)
-y el **proyecto de referencia** funcionando, con los mismos nombres.
+> _"hechizos baratos que hagan daño al nexo enemigo"_, _"unidades de Jonia con
+> Evasión para un mazo agresivo"_, _"cartas que revivan aliados que ya
+> murieron"_ → el agente encuentra las cartas y explica por qué.
 
-| Fase | Guía | Referencia | Estado |
-|---|---|---|---|
-| 1 — Notebook de prueba de concepto | [GUIA.md](GUIA.md) | [lor_guru_fase1.ipynb](lor_guru_fase1.ipynb) | ✅ Capa A 16/16, Capa B 14/16 |
-| 2 — Módulos + tests + API FastAPI | [GUIA_FASE2.md](GUIA_FASE2.md) | [lorguru/](lorguru/) + [tests/](tests/) | ✅ Capa A 16/16, Capa B Claude 16/16 |
-| 3 — UI (Next.js) + despliegue | [GUIA_FASE3.md](GUIA_FASE3.md) | [webapp/](webapp/) + [Dockerfile](Dockerfile) | ✅ (deploy real pendiente de cuentas) |
+Proyecto de portafolio construido en **tres fases**, cada una con una **guía**
+(especificación sin código, para reconstruirla desde cero) y su **proyecto de
+referencia** funcionando.
 
-## Para correr (fase 2 + 3)
+## Cómo funciona
+
+La idea central es **no mezclar** lo estructurado con lo semántico —el error de
+un intento anterior—:
+
+- **Filtros exactos** sobre un DataFrame de pandas para lo que es preciso:
+  costo, ataque, vida, región, tipo, rareza, keywords.
+- **Búsqueda semántica** (embeddings + Chroma) solo sobre el texto de las
+  habilidades — nunca sobre los stats numéricos, que diluirían la señal.
+- **Patrón híbrido**: filtrar primero y buscar semánticamente solo dentro de
+  ese subconjunto.
+- Un **agente con tool use** (Claude / Gemini / GPT, _bring your own key_)
+  traduce tu español a las llamadas correctas y **cura** los resultados.
+
+```
+Navegador (Next.js)                 Backend (FastAPI)
+┌────────────────────┐   POST/SSE   ┌──────────────────────────────┐
+│ consulta + API key ├─────────────▶│ agente (LiteLLM, BYOK)        │
+│ progreso en vivo   │◀─────────────┤   ├─ filtrar_cartas (pandas)  │
+│ grid de cartas     │              │   └─ buscar_semantica (Chroma)│
+└────────────────────┘              │ embeddings: API de Gemini     │
+                                    └──────────────────────────────┘
+```
+
+## Stack
+
+| Capa | Tecnología |
+|---|---|
+| Frontend | Next.js 16 · TypeScript · Tailwind v4 · tema propio estilo LoR |
+| Backend | FastAPI · Pydantic · SSE (streaming por pasos) |
+| Agente | LiteLLM (multi-proveedor BYOK) · tool use |
+| Datos | Data Dragon (es_mx) · pandas · Chroma |
+| Embeddings | API de Gemini `gemini-embedding-001` |
+| Tests | pytest — set de evaluación de 16 consultas en dos capas |
+
+## Fases
+
+| Fase | Guía | Referencia |
+|---|---|---|
+| 1 — Notebook de prueba de concepto | [docs/GUIA_FASE1.md](docs/GUIA_FASE1.md) | [docs/lor_guru_fase1.ipynb](docs/lor_guru_fase1.ipynb) |
+| 2 — Módulos + tests + API FastAPI | [docs/GUIA_FASE2.md](docs/GUIA_FASE2.md) | [lorguru/](lorguru/) · [tests/](tests/) |
+| 3 — UI (Next.js) + despliegue | [docs/GUIA_FASE3.md](docs/GUIA_FASE3.md) | [webapp/](webapp/) · [Dockerfile](Dockerfile) |
+
+## Estructura
+
+```
+lorguru/          Paquete del backend
+  ingesta.py        Descarga con caché + parseo del Data Dragon
+  stores.py         Filtro exacto (pandas) + búsqueda semántica (Chroma)
+  embeddings.py     Cliente de la API de embeddings de Gemini
+  agente.py         Tools, system prompt y loop de tool use (LiteLLM, BYOK)
+  evaluacion.py     Las 16 consultas del set de evaluación
+  build_index.py    Paso de build del índice (python -m lorguru.build_index)
+  api.py            FastAPI: endpoints, schemas, CORS, SSE
+webapp/           Frontend Next.js (consume la API)
+tests/            Regresión: capa A (endpoints) y capa B (agente real)
+scripts/          Utilidades (export OpenAPI, A/B de embeddings)
+docs/             Guías de las tres fases + notebook de la fase 1
+Dockerfile        Imagen del backend (índice ya construido, sin torch)
+```
+
+`data/` (cartas descargadas) y `chroma_db/` (índice) se generan con el build y
+**no** están en el repo — se reconstruyen con un comando.
+
+## Correr en local
 
 ```bash
 pip install -r requirements.txt
+cp .env.example .env          # y rellena tus claves (ver abajo)
 
-# 1. Paso de BUILD (una vez; descarga datos con caché y construye el índice
-#    embebiendo las cartas con la API de Gemini — rota GEMINI_API_KEY_1/_2)
-python -m lorguru.build_index
+python -m lorguru.build_index         # una vez: descarga datos + construye índice
+uvicorn lorguru.api:app --reload      # API en :8000
 
-# 2. Servir la API (solo carga lo que dejó el build)
-uvicorn lorguru.api:app --reload           # :8000
-
-# 3. Frontend
-cd webapp && npm install && npm run dev     # :3000
-
-# 4. Regresión capa A (endpoints; hace embeddings de consulta vía API)
-pytest
-# 5. Regresión capa B (agente real; gasta la API del proveedor)
-pytest -m agente -s
+cd webapp && npm install && npm run dev   # UI en :3000
 ```
 
-`.env` en la raíz (no se sube a git):
+Pruebas:
 
-```
-ANTHROPIC_API_KEY=sk-ant-...   # capa B con Claude (proveedor de referencia)
-GEMINI_API_KEY=...             # embeddings del servidor + capa B con Gemini
-GEMINI_API_KEY_1=...           # build del índice (rotación, ver abajo)
-GEMINI_API_KEY_2=...
-ORIGENES_CORS=http://localhost:3000
+```bash
+pytest                # capa A: los endpoints contra el set de evaluación
+pytest -m agente -s   # capa B: el agente real (gasta la API; claves en .env)
 ```
 
-**Embeddings: API de Gemini (`gemini-embedding-001`, 768 dims).** Se migró
-desde el modelo local `multilingual-e5-large` de la fase 2 para poder
-hospedar barato — el servidor ya no carga un modelo de ~2.5 GB. Detalles y
-el porqué: [GUIA_FASE2.md](GUIA_FASE2.md) §8 (nota de migración). El **build**
-del índice rota `GEMINI_API_KEY_1` y `GEMINI_API_KEY_2` para respetar el RPM
-del free tier (ideal: dos proyectos de Google Cloud separados → cuotas
-independientes); el **servidor** usa `GEMINI_API_KEY` para embeber cada
-consulta. Esa clave de embeddings es un costo del servidor, aparte del modelo
-del agente.
+## Variables de entorno
 
-La API del agente es **BYOK**: `/agente` recibe `proveedor`
-(`anthropic`/`gemini`/`openai`), `modelo` opcional y la `api_key` del usuario
-en el body; la clave no se persiste ni se loguea. `GET /proveedores` marca la
-verificación **por modelo** (solo `claude-sonnet-5` corrió el set completo).
+Todas van en `.env` (local) o en el panel del host (producción) — **nunca en
+el código ni en el repo**. Ver [`.env.example`](.env.example):
+
+| Variable | Para qué | Dónde |
+|---|---|---|
+| `GEMINI_API_KEY` | Embeddings de cada consulta (costo del servidor) | Backend, runtime |
+| `GEMINI_API_KEY_1`/`_2` | Build del índice (rotadas por rate limit) | Solo al construir |
+| `ORIGENES_CORS` | Orígenes permitidos (dominio de Vercel en prod) | Backend, runtime |
+| `ANTHROPIC_API_KEY` | Solo para `pytest -m agente` | Local, opcional |
+| `NEXT_PUBLIC_API_URL` | URL pública del backend | Vercel (frontend) |
+
+## Modelo de seguridad (BYOK)
+
+- **El agente es _bring your own key_**: cada usuario pone su propia clave de
+  Claude/Gemini/GPT en el navegador. Viaja en el body del request, se usa para
+  esa llamada y **no se persiste, no se loguea, no toca disco ni query string**.
+  El proyecto no tiene una clave de LLM propia que exponer.
+- **Las claves del servidor** (embeddings) viven solo como variables de entorno
+  del host; nunca se envían al navegador ni se incluyen en la imagen.
+- `NEXT_PUBLIC_API_URL` es público a propósito (es una URL, no un secreto).
+  Regla de oro: **nunca** pongas un secreto en una variable `NEXT_PUBLIC_*`.
+
+## Despliegue
+
+Resumen; pasos detallados en [docs/GUIA_FASE3.md](docs/GUIA_FASE3.md) §6.
+
+1. **Índice**: `python -m lorguru.build_index` en tu máquina (usa tus
+   `GEMINI_API_KEY_1/_2`). Deja `data/` y `chroma_db/` listos —los copia la
+   imagen Docker— sin meter claves en el build.
+2. **Backend** → Railway / Render / Fly.io, desplegando **desde tu máquina con
+   la CLI del host** (`flyctl deploy`, `railway up`): el contexto de build es
+   tu carpeta local, así que incluye `data/` y `chroma_db/` sin subirlos a
+   GitHub. Configura `GEMINI_API_KEY` y `ORIGENES_CORS` como variables de
+   entorno del host.
+3. **Frontend** → Vercel, root directory `webapp/`, variable
+   `NEXT_PUBLIC_API_URL` = URL pública del backend.
+4. Copia el dominio de Vercel a `ORIGENES_CORS` del backend y redespliégalo.
+
+---
+
+Proyecto de portafolio. No afiliado a Riot Games. Los datos e imágenes de
+cartas provienen del [Data Dragon](https://developer.riotgames.com/docs/lor)
+público de _Legends of Runeterra_.

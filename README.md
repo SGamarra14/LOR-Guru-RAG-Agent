@@ -12,30 +12,6 @@ Proyecto de portafolio construido en **tres fases**, cada una con una **guía**
 (especificación sin código, para reconstruirla desde cero) y su **proyecto de
 referencia** funcionando.
 
-## Cómo funciona
-
-La idea central es **no mezclar** lo estructurado con lo semántico —el error de
-un intento anterior—:
-
-- **Filtros exactos** sobre un DataFrame de pandas para lo que es preciso:
-  costo, ataque, vida, región, tipo, rareza, keywords.
-- **Búsqueda semántica** (embeddings + Chroma) solo sobre el texto de las
-  habilidades — nunca sobre los stats numéricos, que diluirían la señal.
-- **Patrón híbrido**: filtrar primero y buscar semánticamente solo dentro de
-  ese subconjunto.
-- Un **agente con tool use** (Claude / Gemini / GPT, _bring your own key_)
-  traduce tu español a las llamadas correctas y **cura** los resultados.
-
-```
-Navegador (Next.js)                 Backend (FastAPI)
-┌────────────────────┐   POST/SSE   ┌──────────────────────────────┐
-│ consulta + API key ├─────────────▶│ agente (LiteLLM, BYOK)        │
-│ progreso en vivo   │◀─────────────┤   ├─ filtrar_cartas (pandas)  │
-│ grid de cartas     │              │   └─ buscar_semantica (Chroma)│
-└────────────────────┘              │ embeddings: API de Gemini     │
-                                    └──────────────────────────────┘
-```
-
 ## Stack
 
 | Capa | Tecnología |
@@ -117,25 +93,6 @@ el código ni en el repo**. Ver [`.env.example`](.env.example):
 - **Las claves del servidor** (embeddings) viven solo como variables de entorno
   del host; nunca se envían al navegador ni se incluyen en la imagen.
 - `NEXT_PUBLIC_API_URL` es público a propósito (es una URL, no un secreto).
-  Regla de oro: **nunca** pongas un secreto en una variable `NEXT_PUBLIC_*`.
-
-## Despliegue
-
-Resumen; pasos detallados en [docs/GUIA_FASE3.md](docs/GUIA_FASE3.md) §6.
-
-1. **Índice**: `python -m lorguru.build_index` en tu máquina (usa tus
-   `GEMINI_API_KEY_1/_2`). Deja `data/` y `chroma_db/` listos —los copia la
-   imagen Docker— sin meter claves en el build.
-2. **Backend** → Railway / Render / Fly.io, desplegando **desde tu máquina con
-   la CLI del host** (`flyctl deploy`, `railway up`): el contexto de build es
-   tu carpeta local, así que incluye `data/` y `chroma_db/` sin subirlos a
-   GitHub. Configura `GEMINI_API_KEY` y `ORIGENES_CORS` como variables de
-   entorno del host.
-3. **Frontend** → Vercel, root directory `webapp/`, variable
-   `NEXT_PUBLIC_API_URL` = URL pública del backend.
-4. Copia el dominio de Vercel a `ORIGENES_CORS` del backend y redespliégalo.
-
----
 
 Proyecto de portafolio. No afiliado a Riot Games. Los datos e imágenes de
 cartas provienen del [Data Dragon](https://developer.riotgames.com/docs/lor)

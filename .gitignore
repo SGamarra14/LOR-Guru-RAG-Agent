@@ -3,9 +3,10 @@
 .env.*
 !.env.example
 
-# Datos y artefactos generados (se reconstruyen con python -m lorguru.build_index)
-data/
-chroma_db/
+# NOTA: data/ (cartas públicas) y chroma_db/ (índice de vectores, sin secretos)
+# SÍ se versionan a propósito: el Dockerfile los copia y el host (Railway) los
+# necesita al construir la imagen desde el repo. Se regeneran con
+# `python -m lorguru.build_index` si cambian los datos o el modelo de embeddings.
 
 # Python
 __pycache__/

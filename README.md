@@ -48,7 +48,29 @@ razonamiento del agente en tiempo real en vez de un spinner.
 | **Búsqueda vectorial** | Chroma (persistente) |
 | **Embeddings** | API de Gemini `gemini-embedding-001` |
 | **Tests** | pytest — set de evaluación de 16 consultas en dos capas |
-| **Despliegue** | Frontend en **Vercel** · Backend en **Railway** (Docker) |
+| **Despliegue** | Frontend en **Vercel** · Backend en **Render** (free tier) |
+
+## Arquitectura del despliegue
+
+Frontend y backend se despliegan por separado:
+
+- **Frontend — Vercel:** el sitio Next.js, conectado al repo (cada push a `main`
+  redeploya). Solo habla con el backend por HTTP, y la API key del usuario nunca
+  sale del navegador.
+- **Backend — Render (free tier):** un servicio web Python (FastAPI + Uvicorn).
+  El índice vectorial de Chroma se construye *offline*
+  (`python -m lorguru.build_index`) y se versiona **ya hecho** en el repo, así el
+  servidor solo lo lee al arrancar —sin modelos de embeddings pesados en
+  memoria—. En caliente lo único que vectoriza es la consulta, vía la API de
+  Gemini.
+
+**Claves:** las de los LLM son **BYOK** (viajan en el cuerpo de la petición, no
+se persisten ni se loguean); la única del lado servidor es `GEMINI_API_KEY`,
+para embeber las consultas.
+
+> El free tier de Render duerme el servicio tras un rato de inactividad: la
+> primera petición después puede tardar ~30–60 s en responder (arranque en
+> frío). Luego va a velocidad normal.
 
 ## Notebook de pruebas iniciales
 

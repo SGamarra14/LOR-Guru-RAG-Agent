@@ -1,0 +1,35 @@
+# Blueprint de Render para el backend de LoR Guru.
+#
+# Es una COPIA del backend en un free tier que NO expira (a diferencia del
+# crédito de Railway): el servicio gratuito solo se DUERME tras ~15 min de
+# inactividad y despierta solo en la primera petición (arranque en frío
+# ~30-60 s). No toca nada de lo ya desplegado.
+#
+# Despliegue (una vez):
+#   1. render.com -> New + -> Blueprint.
+#   2. Conecta este repositorio y elige la rama que contenga este archivo.
+#   3. Render lee este render.yaml y crea el servicio construyendo la imagen
+#      desde el Dockerfile (que ya copia data/ + chroma_db/ versionados).
+#   4. En el dashboard del servicio -> Environment, define las variables
+#      marcadas abajo como `sync: false` (son secretas / propias del entorno):
+#         GEMINI_API_KEY  -> tu clave de Gemini (embeddings de las consultas)
+#         ORIGENES_CORS   -> https://lor-guru-rag-agent.vercel.app
+#      (ORIGENES_CORS admite varios orígenes separados por coma.)
+#
+# El backend arranca cargando el índice ya construido; si faltara, falla al
+# arrancar por diseño (separación indexado/servido).
+services:
+  - type: web
+    name: lor-guru-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /salud
+    # Sin autodeploy: el free tier reconstruye la imagen en cada push y aquí
+    # no hace falta. Ponlo en true si quieres que la rama se redepliegue sola.
+    autoDeploy: false
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ORIGENES_CORS
+        sync: false

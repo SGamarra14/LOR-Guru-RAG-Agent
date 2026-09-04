@@ -1,0 +1,31 @@
+# Blueprint de Render para el backend de LoR Guru.
+#
+# Refleja el servicio REAL en producción: un web service Python nativo en el
+# free tier (que, a diferencia del crédito de Railway, no expira — solo duerme
+# tras inactividad y despierta solo en la primera petición, ~30-60 s en frío).
+#
+# Reproducir el deploy:
+#   1. render.com -> New + -> Blueprint, conecta este repo y elige la rama.
+#   2. Render lee este archivo y crea el servicio: clona el repo, corre el
+#      buildCommand (instala deps) y arranca con el startCommand. El índice
+#      vectorial (data/ + chroma_db/) ya viaja versionado en el repo.
+#   3. En el dashboard -> Environment, define las variables `sync: false`:
+#         GEMINI_API_KEY  -> clave de Gemini (embeddings de las consultas)
+#         ORIGENES_CORS   -> https://lor-guru-rag-agent.vercel.app
+#      (ORIGENES_CORS admite varios orígenes separados por coma.)
+services:
+  - type: web
+    name: lor-guru-api
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: uvicorn lorguru.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /salud
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ORIGENES_CORS
+        sync: false

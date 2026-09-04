@@ -138,7 +138,26 @@ Checklist de avance:
 y hasta tras reiniciar el dev server ("Compiled" engañoso). Si un cambio de
 CSS no aparece: borrar `webapp/.next` y reiniciar.
 
-Pendiente que requiere cuentas del usuario (no automatizable desde aquí):
-deploy real a Vercel (root dir `webapp/`, var `NEXT_PUBLIC_API_URL`) y al
-host del backend (imagen del Dockerfile; var `ORIGENES_CORS` con el dominio
-de Vercel). Pasos exactos en GUIA_FASE3.md §6.
+### Despliegue (HECHO, 2026-09-04)
+
+- **Frontend en Vercel**: proyecto `lor-guru-rag-agent` (team DDDD), conectado
+  al repo GitHub, prod en https://lor-guru-rag-agent.vercel.app. Var
+  `NEXT_PUBLIC_API_URL` = dominio del backend en Render (con https://, sin
+  barra final). OJO: es build-time — cambiarla exige **redeploy**; el MCP de
+  Vercel NO edita env vars (se hace en el dashboard).
+- **Backend en Render** (reemplazó a Railway, cuyo crédito free EXPIRA y dejó
+  la API caída): servicio web **Python nativo** (NO Docker — el MCP de Render
+  no crea servicios Docker) `lor-guru-api`, free tier, deploy desde `main`.
+  Build `pip install -r requirements-api.txt`, start
+  `uvicorn lorguru.api:app --host 0.0.0.0 --port $PORT`. URL:
+  https://lor-guru-api.onrender.com. Blueprint reproducible en `render.yaml`
+  (raíz). Env: `PYTHON_VERSION=3.12.7`, `ORIGENES_CORS` (dominio Vercel),
+  `GEMINI_API_KEY` (la puso el usuario en el dashboard; nunca pasa por aquí).
+  El free tier duerme tras inactividad → primer request ~30-60 s (arranque en
+  frío), pero NO expira como Railway. `/salud` y `/proveedores` verificados OK
+  (1647 cartas, índice cargado en los 512 MB del free tier).
+- Railway sigue existiendo pero caído; Render es la fuente de verdad. Para
+  volver a Railway: revivirlo y apuntar `NEXT_PUBLIC_API_URL` de vuelta.
+
+El Dockerfile del repo queda como alternativa (host que sí soporte Docker);
+Render usa el runtime Python nativo, no la imagen.
